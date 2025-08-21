@@ -1,7 +1,7 @@
 # claims_mapper
 
 **Map messy Claim JSON → a strict, validated Claim model (Dart).**  
-Designed for reliability in automated pipelines and easy-to-test behavior. Includes strict validation, helpful normalization, typed errors, and injectable logging.
+A tiny Dart library that turns messy claim JSON into a strict, validated model. It normalizes CPT (procedure) and ICD-10 (diagnosis) codes, validates NPI (provider ID via Luhn), parses COB (payer sequence + amounts), coerces money to integer cents, and normalizes dates to UTC midnight. Failures raise typed errors; recoverable issues emit logger warnings (mocked with mocktail). The repo includes a full unit test suite and GitHub Actions CI running analyzer + tests on every push..
 
 ---
 
