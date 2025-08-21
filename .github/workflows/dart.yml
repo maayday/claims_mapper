@@ -26,3 +26,17 @@ jobs:
 
       - name: Test
         run: dart test -r expanded
+
+      # === Add these two steps ===
+      - name: Test with coverage
+        run: |
+          dart test --coverage=coverage
+          dart run coverage:format_coverage \
+            --lcov --in=coverage --out=coverage/lcov.info \
+            --packages=.dart_tool/package_config.json --report-on=lib
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: coverage/lcov.info
