@@ -1,5 +1,7 @@
 # claims_mapper
 
+[![Coverage](https://codecov.io/gh/maayday/claims_mapper/branch/main/graph/badge.svg)](https://codecov.io/gh/maayday/claims_mapper)
+
 ![Dart CI](https://github.com/maayday/claims_mapper/actions/workflows/dart.yml/badge.svg)
 
 **Map messy Claim JSON → a strict, validated Claim model (Dart).**  
