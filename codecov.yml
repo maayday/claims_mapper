@@ -1,0 +1,12 @@
+# codecov.yml
+comment:
+  behavior: default
+  layout: "reach, diff, flags, files"
+  require_changes: false
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: "2%"
