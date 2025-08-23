@@ -282,4 +282,156 @@ void main() {
       t.expect(() => mapper.map(emptyIcd), t.throwsA(t.isA<InvalidCodeError>()));
     });
   });
+
+    t.test('ICD-10 invalid shape throws InvalidCodeError', () {
+      final json = {
+        'claimId': 'BAD-ICD',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['11E'], // invalid: starts with digit
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10,
+      };
+      t.expect(() => mapper.map(json), t.throwsA(t.isA<InvalidCodeError>()));
+    });
+
+    t.test('invalid date throws InvalidDateError', () {
+      final json = {
+        'claimId': 'BAD-DATE',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '31-02-2024', // unsupported format
+        'totalCharge': 10,
+      };
+      t.expect(() => mapper.map(json), t.throwsA(t.isA<InvalidDateError>()));
+    });
+
+    t.test('cptCodes wrong type throws TypeMismatchError', () {
+      final json = {
+        'claimId': 'BAD-CPT-TYPE',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': 99213, // should be String or List<String>
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10,
+      };
+      t.expect(() => mapper.map(json), t.throwsA(t.isA<TypeMismatchError>()));
+    });
+
+    t.test('COB sequence non-numeric string throws TypeMismatchError', () {
+      final json = {
+        'claimId': 'COB-SEQ-NONNUM',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10,
+        'cob': {'sequence': 'abc'},
+      };
+      t.expect(() => mapper.map(json), t.throwsA(t.isA<TypeMismatchError>()));
+    });
+
+    t.test('COB sequence < 1 throws InvalidAmountError', () {
+      final json = {
+        'claimId': 'COB-SEQ-ZERO',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10,
+        'cob': {'sequence': 0},
+      };
+      t.expect(() => mapper.map(json), t.throwsA(t.isA<InvalidAmountError>()));
+    });
+
+    t.test('COB otherPayerId non-string -> warning and dropped', () {
+      final json = {
+        'claimId': 'COB-OPI-DROP',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10,
+        'cob': {'sequence': 2, 'otherPayerId': 999},
+      };
+      final claim = mapper.map(json);
+      t.expect(claim.cob, t.isNotNull);
+      t.expect(claim.cob!.otherPayerId, t.isNull);
+
+      verify(() => logger.warn(
+            any(that: t.contains('Dropped non-string otherPayerId')),
+            context: any(named: 'context'),
+          )).called(1);
+    });
+
+    t.test('totalCharge wrong type throws TypeMismatchError', () {
+      final json = {
+        'claimId': 'BAD-AMOUNT-TYPE',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': {'amount': 10}, // invalid type
+      };
+      t.expect(() => mapper.map(json), t.throwsA(t.isA<TypeMismatchError>()));
+    });
+
+    t.test('NPI with punctuation is accepted and normalized', () {
+      final json = {
+        'claimId': 'NPI-FMT',
+        'memberId': 'M',
+        'providerNpi': '100-000-0004', // valid when digits are extracted
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10,
+      };
+      final claim = mapper.map(json);
+      t.expect(claim.providerNpi, '1000000004');
+    });
+
+    t.test('ICD-10 from comma-separated string splits and normalizes', () {
+      final json = {
+        'claimId': 'ICD-CSV',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': 'E11.9, M545',
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10,
+      };
+      final claim = mapper.map(json);
+      t.expect(claim.icdCodes, ['E11.9', 'M54.5']);
+    });
+
+    t.test('money rounding is stable', () {
+      final up = {
+        'claimId': 'ROUND-UP',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10.005, // -> 1001
+      };
+      final down = {
+        'claimId': 'ROUND-DOWN',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 10.004, // -> 1000
+      };
+      t.expect(mapper.map(up).totalChargeCents, 1001);
+      t.expect(mapper.map(down).totalChargeCents, 1000);
+    });
 }
