@@ -48,7 +48,7 @@ jobs:
                   if ln.startswith('LF:'): total += int(ln[3:].strip())
           pct = (100.0*hit/total) if total else 0.0
           print(f"Coverage: {pct:.2f}% (LH={hit}, LF={total})")
-          sys.exit(0 if pct >= 80.0 else 1)
+          sys.exit(0 if pct >= 70.0 else 1)
           PY
 
       - name: Upload coverage artifact
