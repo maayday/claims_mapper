@@ -24,26 +24,35 @@ jobs:
       - name: Analyze
         run: dart analyze
 
-      - name: Test
-        run: dart test -r expanded
-
-      # === Add these two steps ===
+      # Run tests and produce LCOV coverage (coverage/lcov.info)
       - name: Test with coverage
         run: |
           dart test --coverage=coverage
           dart run coverage:format_coverage \
-            --lcov --in=coverage --out=coverage/lcov.info \
-            --packages=.dart_tool/package_config.json --report-on=lib
+            --lcov \
+            --in=coverage \
+            --out=coverage/lcov.info \
+            --packages=.dart_tool/package_config.json \
+            --report-on=lib
 
+      # Enforce a minimum project coverage (adjust 85.0 if you want)
+      - name: Enforce coverage ≥ 85%
+        run: |
+          python - <<'PY'
+          import sys
+          hit=total=0
+          with open('coverage/lcov.info') as f:
+              for ln in f:
+                  if ln.startswith('LH:'): hit  += int(ln[3:].strip())
+                  if ln.startswith('LF:'): total += int(ln[3:].strip())
+          pct = (100.0*hit/total) if total else 0.0
+          print(f"Coverage: {pct:.2f}%")
+          sys.exit(0 if pct >= 85.0 else 1)
+          PY
+
+      # Keep an artifact so you can download coverage from Actions
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: lcov
           path: coverage/lcov.info
-
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage/lcov.info
-          fail_ci_if_error: true
-          # token is required if the repo is private; omit for public repos
