@@ -1,9 +1,4 @@
-# codecov.yml
-comment:
-  behavior: default
-  layout: "reach, diff, flags, files"
-  require_changes: false
-
+comment: false
 coverage:
   status:
     project:

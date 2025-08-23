@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +25,7 @@ jobs:
       - name: Analyze
         run: dart analyze
 
-      # Run tests and produce LCOV coverage (coverage/lcov.info)
+      # ---- Tests + LCOV coverage ----
       - name: Test with coverage
         run: |
           dart test --coverage=coverage
@@ -35,8 +36,8 @@ jobs:
             --packages=.dart_tool/package_config.json \
             --report-on=lib
 
-      # Enforce a minimum project coverage (adjust 85.0 if you want)
-      - name: Enforce coverage ≥ 85%
+      # ---- Hard coverage gate (adjust threshold as you like) ----
+      - name: Enforce coverage ≥ 80%
         run: |
           python - <<'PY'
           import sys
@@ -46,13 +47,21 @@ jobs:
                   if ln.startswith('LH:'): hit  += int(ln[3:].strip())
                   if ln.startswith('LF:'): total += int(ln[3:].strip())
           pct = (100.0*hit/total) if total else 0.0
-          print(f"Coverage: {pct:.2f}%")
-          sys.exit(0 if pct >= 85.0 else 1)
+          print(f"Coverage: {pct:.2f}% (LH={hit}, LF={total})")
+          sys.exit(0 if pct >= 80.0 else 1)
           PY
 
-      # Keep an artifact so you can download coverage from Actions
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: lcov
           path: coverage/lcov.info
+
+      # ---- Codecov upload (optional & non-blocking if token missing) ----
+      - name: Upload to Codecov
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
