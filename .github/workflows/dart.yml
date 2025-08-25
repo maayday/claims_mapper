@@ -10,7 +10,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      COVERAGE_THRESHOLD: 85.0  # Minimum acceptable coverage percentage
+      # Tune this when you add tests
+      COVERAGE_THRESHOLD: "85.0"
+      # Map the GitHub secret into env so we can test it in `if:`
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -37,19 +41,18 @@ jobs:
       - name: Enforce coverage ≥ ${{ env.COVERAGE_THRESHOLD }}%
         shell: bash
         run: |
-            python - <<'PY'
-            import os, sys
-            th = float(os.getenv('COVERAGE_THRESHOLD', '85.0'))
-            hit = total = 0
-            with open('coverage/lcov.info') as f:
-                for ln in f:
-                    if ln.startswith('LH:'): hit  += int(ln[3:].strip())
-                    if ln.startswith('LF:'): total += int(ln[3:].strip())
-            pct = (100.0*hit/total) if total else 0.0
-            print(f"Coverage: {pct:.2f}% (LH={hit}, LF={total}) | Threshold: {th:.2f}%")
-            sys.exit(0 if pct >= th else 1)
-            PY
-          
+          python - <<'PY'
+          import os, sys
+          th = float(os.getenv('COVERAGE_THRESHOLD', '85.0'))
+          hit = total = 0
+          with open('coverage/lcov.info') as f:
+              for ln in f:
+                  if ln.startswith('LH:'): hit  += int(ln[3:].strip())
+                  if ln.startswith('LF:'): total += int(ln[3:].strip())
+          pct = (100.0*hit/total) if total else 0.0
+          print(f"Coverage: {pct:.2f}% (LH={hit}, LF={total}) | Threshold: {th:.2f}%")
+          sys.exit(0 if pct >= th else 1)
+          PY
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -57,12 +60,11 @@ jobs:
           name: lcov
           path: coverage/lcov.info
 
-# ---- Codecov upload (runs only if secret exists) ----
+      # Upload to Codecov only if the secret exists (no YAML tricks)
       - name: Upload to Codecov
-        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        if: ${{ env.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v4
         with:
           files: coverage/lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
           fail_ci_if_error: true
-
