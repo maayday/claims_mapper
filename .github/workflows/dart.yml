@@ -52,3 +52,12 @@ jobs:
         with:
           name: lcov
           path: coverage/lcov.info
+
+          # ---- Codecov upload (runs only if secret exists) ----
+- name: Upload to Codecov
+if: ${{ secrets.CODECOV_TOKEN != '' }}
+uses: codecov/codecov-action@v4
+with:
+  files: coverage/lcov.info
+  token: ${{ secrets.CODECOV_TOKEN }}
+  fail_ci_if_error: true
