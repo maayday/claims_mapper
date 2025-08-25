@@ -2,20 +2,17 @@ name: Dart CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: ["main", "master"]
   pull_request:
-    branches: [ main, master ]
+    branches: ["main", "master"]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
 
@@ -25,8 +22,7 @@ jobs:
       - name: Analyze
         run: dart analyze
 
-      # ---- Tests + LCOV coverage ----
-      - name: Test with coverage
+      - name: Test (with coverage)
         run: |
           dart test --coverage=coverage
           dart run coverage:format_coverage \
@@ -36,8 +32,8 @@ jobs:
             --packages=.dart_tool/package_config.json \
             --report-on=lib
 
-      # ---- Hard coverage gate (adjust threshold as you like) ----
       - name: Enforce coverage ≥ 80%
+        shell: bash
         run: |
           python - <<'PY'
           import sys
@@ -46,9 +42,9 @@ jobs:
               for ln in f:
                   if ln.startswith('LH:'): hit  += int(ln[3:].strip())
                   if ln.startswith('LF:'): total += int(ln[3:].strip())
-          pct = (100.0*hit/total) if total else 0.0
+          pct=(100.0*hit/total) if total else 0.0
           print(f"Coverage: {pct:.2f}% (LH={hit}, LF={total})")
-          sys.exit(0 if pct >= 70.0 else 1) 
+          sys.exit(0 if pct >= 80.0 else 1)
           PY
 
       - name: Upload coverage artifact
@@ -56,13 +52,3 @@ jobs:
         with:
           name: lcov
           path: coverage/lcov.info
-
-# ---- Codecov upload (optional; runs only if the secret exists) ----
-  - name: Upload to Codecov
-  if: ${{ secrets.CODECOV_TOKEN != '' }}
-  uses: codecov/codecov-action@v4
-  with:
-    files: coverage/lcov.info
-    token: ${{ secrets.CODECOV_TOKEN }}
-    fail_ci_if_error: true
-
