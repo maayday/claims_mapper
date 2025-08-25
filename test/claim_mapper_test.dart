@@ -256,6 +256,7 @@ void main() {
             any(that: t.contains('Dropped non-string code element')),
             context: any(named: 'context'),
           )).called(1);
+      
     });
 
     t.test('empty CPT or ICD throws InvalidCodeError', () {
@@ -280,6 +281,93 @@ void main() {
 
       t.expect(() => mapper.map(emptyCpt), t.throwsA(t.isA<InvalidCodeError>()));
       t.expect(() => mapper.map(emptyIcd), t.throwsA(t.isA<InvalidCodeError>()));
+    });
+       t.test('COB sequence accepts numeric string and normalizes to int', () {
+      final json = {
+        'claimId': 'COB-SEQ-STR',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 1,
+        'cob': {'sequence': '2', 'otherPayerId': 'PAY'}
+      };
+      final claim = mapper.map(json);
+      t.expect(claim.cob, t.isNotNull);
+      t.expect(claim.cob!.sequence, 2);
+    });
+
+    t.test('CPT from comma-separated string splits and normalizes', () {
+      final json = {
+        'claimId': 'CPT-CSV',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': '99213,97110,  99397 ',
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 1,
+      };
+      final claim = mapper.map(json);
+      t.expect(claim.cptCodes, ['99213', '97110', '99397']);
+    });
+
+    t.test('money parser handles whole-dollar string without cents and commas', () {
+      final json = {
+        'claimId': 'MONEY-PLAIN',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': '1,234',  // -> 123400 cents
+      };
+      final claim = mapper.map(json);
+      t.expect(claim.totalChargeCents, 123400);
+    });
+
+    t.test('missing memberId throws MissingFieldError', () {
+      final json = {
+        'claimId': 'MISS-MEMBER',
+        // 'memberId' missing
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 1,
+      };
+      t.expect(() => mapper.map(json), t.throwsA(t.isA<MissingFieldError>()));
+    });
+
+    t.test('ICD wrong type (int) throws TypeMismatchError', () {
+      final json = {
+        'claimId': 'ICD-TYPE',
+        'memberId': 'M',
+        'providerNpi': '1000000004',
+        'cptCodes': ['99213'],
+        'icdCodes': 123,  // should be String or List<String>
+        'dateOfService': '2024-02-01',
+        'totalCharge': 1,
+      };
+      t.expect(() => mapper.map(json), t.throwsA(t.isA<TypeMismatchError>()));
+    });
+
+    t.test('CPT element null -> warning and element dropped', () {
+      final json = {
+        'claimId': 'CPT-NULL',
+        'memberId': 'M',
+        'providerNpi': '2234567891', // valid
+        'cptCodes': ['99213', null], // null dropped
+        'icdCodes': ['E119'],
+        'dateOfService': '2024-02-01',
+        'totalCharge': 1,
+      };
+      final claim = mapper.map(json);
+      t.expect(claim.cptCodes, ['99213']);
+      verify(() => logger.warn(
+        any(that: t.contains('Dropped non-string code element')),
+        context: any(named: 'context'),
+      )).called(1);
     });
   });
 
