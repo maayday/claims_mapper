@@ -5,8 +5,6 @@
 // Classification of Diseases), NPI (National Provider Identifier), COB
 // (Coordination of Benefits), dates, and money amounts.
 
-
-
 import 'claim.dart';
 import 'errors.dart';
 import 'logger.dart';
@@ -105,8 +103,12 @@ class ClaimMapper {
       for (final item in raw) {
         if (item is String && item.trim().isNotEmpty) {
           out.add(item.trim());
-        } else if (item != null) {
-          logger.warn('Dropped non-string code element', context: {'field': fieldName, 'value': item});
+        } else {
+          // CHANGE: warn for BOTH non-string AND null elements (unified message)
+          logger.warn(
+            'Dropped non-string code element',
+            context: {'field': fieldName, 'value': item},
+          );
         }
       }
       return out;
